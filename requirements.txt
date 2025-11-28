@@ -1,0 +1,3 @@
+python-telegram-bot
+deep-translator
+gunicorn  # <-- Gunicorn هو خادم ويب خفيف نحتاجه لتشغيل Webhooks على Render
