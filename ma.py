@@ -3,25 +3,28 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import random
 import time
 from deep_translator import GoogleTranslator 
-import os # 👈 تم إضافة استيراد مكتبة os
+import os 
 
 # =============================================================================
 # 1. الثوابت والمتغيرات الرئيسية (معلوماتك الخاصة)
 # =============================================================================
 
-# يفضل في بيئات الإنتاج (الاستضافة) استخدام متغيرات البيئة لـ TOKEN_BOT و USER_ADMIN_ID
 TOKEN_BOT = "8584368140:AAE5yMyAYiefJ4SNqajzC_TzmBvkmE_whp8"
 USER_ADMIN_ID = 5730502448 
 WALLET_ADDRESS = "0xba844f21fafb51d3a05826756a6305c0ec07f2fa"
 APP_PRICE = 5.00 
 
+# رابط التنزيل الأصلي (لم يعد يستخدم لإرسال الملف)
 APK_DOWNLOAD_LINK = "https://play.google.com/store/apps/details?id=com.speed.gc.autoclicker.automatictap"
+
+# 🔑 مُعرِّف الملف الفريد (مفعل لنظام الإرسال المباشر للملف)
+APK_FILE_ID = "AgADah8AAt5fUVE" 
 
 BINANCE_PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.binance.dev"
 
 BASE_BUTTON_TEXT_AR = "💰 شراء التطبيق"
 
-# اللغات المدعومة
+# اللغات المدعومة (الآن تشمل الكورية)
 SUPPORTED_LANGUAGES = {
     "العربية 🇪🇬": "ar",
     "English 🇺🇸": "en",
@@ -182,7 +185,7 @@ async def buy_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """يستخدمه المشرف يدوياً لتأكيد التسليم للمستخدم وإرسال رابط التنزيل المحدث."""
+    """يستخدمه المشرف يدوياً لتأكيد التسليم للمستخدم وإرسال الملف."""
     
     if update.effective_user.id != USER_ADMIN_ID:
         return await update.message.reply_text("هذا الأمر خاص بالمشرفين فقط.")
@@ -203,16 +206,20 @@ async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_lang_code = get_user_lang(target_user_id) 
     orders_db[order_id]['status'] = 'DELIVERED'
     
-    # صياغة وترجمة رسالة التسليم
+    # صياغة وترجمة رسالة التعليق على الملف
     delivery_confirmation_ar = (
         f"✅ **تم تأكيد الدفع!** شكراً لك.\n\n"
-        f"إليك رابط تنزيل التطبيق:\n"
-        f"[رابط تنزيل التطبيق الخاص بك]({APK_DOWNLOAD_LINK})"
+        f"هذا هو ملف التطبيق الخاص بك جاهز للتنزيل مباشرة لا تنسى مشاركة البوت مع اصدقائك 🙏🏻."
     )
     delivery_confirmation = translate_text(delivery_confirmation_ar, user_lang_code)
     
-    # إرسال التسليم إلى المشتري
-    await context.bot.send_message(chat_id=target_user_id, text=delivery_confirmation, parse_mode='Markdown')
+    # إرسال التسليم كملف (Document) باستخدام مُعرِّف الملف
+    await context.bot.send_document(
+        chat_id=target_user_id, 
+        document=APK_FILE_ID,  # استخدام مُعرِّف الملف
+        caption=delivery_confirmation, 
+        parse_mode='Markdown'
+    )
     
     # تأكيد التسليم للمشرف
     await update.message.reply_text(f"تم بنجاح تسليم التطبيق للطلب {order_id}.")
@@ -221,9 +228,8 @@ async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 4. نقطة الدخول وبدء التشغيل (باستخدام Webhook)
 # =============================================================================
 
-# 👈 تحديد المتغيرات المطلوبة للويب هوك (سيتم سحبها من بيئة الاستضافة)
-PORT = int(os.environ.get('PORT', 8080)) # المنفذ الذي ستستمع عليه الخدمة (عادة 80 أو 8080)
-# رابط الويب هوك الذي ستزودك به منصة الاستضافة (يجب عليك تغييره إلى رابط تطبيقك)
+# تحديد المتغيرات المطلوبة للويب هوك 
+PORT = int(os.environ.get('PORT', 8080)) 
 WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://your-app-name.onrender.com/') 
 
 if __name__ == '__main__':
@@ -244,13 +250,12 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.Text(list(ALL_BUY_BUTTON_TEXTS)), buy_app)) 
     application.add_handler(MessageHandler(filters.Text(), handle_lang_choice))
     
-    # 🚨 بدء تشغيل البوت باستخدام Webhooks 🚨
+    # بدء تشغيل البوت باستخدام Webhooks
     print(f"البوت يعمل بنظام Webhook على المنفذ {PORT}...")
     
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        # المسار السري الذي سيستمع إليه البوت (يمكن تركه فارغاً أو تعيينه)
         url_path="", 
-        webhook_url=WEBHOOK_URL # الرابط العام الكامل لتطبيقك
+        webhook_url=WEBHOOK_URL 
     )
