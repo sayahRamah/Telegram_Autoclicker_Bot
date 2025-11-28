@@ -18,7 +18,7 @@ APP_PRICE = 5.00
 APK_DOWNLOAD_LINK = "https://play.google.com/store/apps/details?id=com.speed.gc.autoclicker.automatictap"
 
 # 🔑 مُعرِّف الملف الفريد (مفعل لنظام الإرسال المباشر للملف)
-APK_FILE_ID = "AgADah8AAt5fUVE" 
+APK_FILE_ID = "AgADex8AAt5fUVE" 
 
 BINANCE_PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.binance.dev"
 
