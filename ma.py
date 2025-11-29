@@ -65,19 +65,29 @@ def translate_text(text_ar, lang_code):
         return text_ar
 
 # =============================================================================
-# 🚨 دالة التشخيص المؤقتة (للحصول على الـ File ID) 🚨
+# 🚨 دالة التشخيص العامة المؤقتة (للحصول على الـ File ID) 🚨
 # =============================================================================
 
-async def debug_file_id_temp(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """تستجيب لأي ملف مُرسل وترد بالـ File ID الخاص به لنسخه."""
-    if update.message.document:
+async def debug_file_id_temp_general(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """تستجيب لأي رسالة وتحاول طباعة الـ File ID للمستند."""
+    
+    if update.message and update.message.document:
         file_id = update.message.document.file_id
         await update.message.reply_text(
-            f"✅ تم الحصول على الرمز الصحيح. الرمز الكامل هو:\n\n`{file_id}`\n\n**انسخ هذا الرمز بدقة بالغة (من `A` إلى الحرف الأخير).**",
+            f"✅ رمز الملف: `\n{file_id}`\n\n**انسخ الرمز بالكامل (من `A` إلى الحرف الأخير).**",
             parse_mode='Markdown'
         )
-    else:
-        await update.message.reply_text("يرجى إرسال ملف (مستند/Document) للحصول على رمزه.")
+    elif update.message and update.message.photo:
+        await update.message.reply_text("هذه صورة. يجب إرسال ملف التطبيق (APK) كـ **مستند (Document)** للحصول على الرمز الصحيح.")
+    elif update.message and update.message.text:
+         # نتجاهل الأوامر التي تبدأ بـ /start /buy /deliver لأن لها معالجات خاصة
+         if not update.message.text.startswith('/') and update.message.text not in SUPPORTED_LANGUAGES.keys():
+              # هذا الجزء يمكن أن يعالج رسائل المستخدم العادية بعد اختيار اللغة
+              user_lang_code = get_user_lang(update.effective_user.id)
+              help_msg_ar = "عذراً، لا أفهم هذا الأمر. يرجى الضغط على زر الشراء أو استخدام الأمر /start."
+              help_msg = translate_text(help_msg_ar, user_lang_code)
+              await update.message.reply_text(help_msg)
+
 
 # =============================================================================
 # 3. الدوال الرئيسية للبوت
@@ -109,6 +119,7 @@ async def handle_lang_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_text = update.message.text
     
     if user_id in user_states and user_states[user_id]['status'] == 'awaiting_lang':
+        
         if user_text in SUPPORTED_LANGUAGES:
             lang_code = SUPPORTED_LANGUAGES[user_text]
             user_states[user_id]['lang'] = lang_code
@@ -121,12 +132,8 @@ async def handle_lang_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             error_ar = "عذراً، يرجى اختيار واحدة من اللغات المتاحة من لوحة المفاتيح."
             error_text = translate_text(error_ar, get_user_lang(user_id))
             await update.message.reply_text(error_text)
-    else:
-        user_lang_code = get_user_lang(user_id)
-        if user_text not in SUPPORTED_LANGUAGES.keys():
-             help_msg_ar = "عذراً، لا أفهم هذا الأمر. يرجى الضغط على زر الشراء أو استخدام الأمر /start."
-             help_msg = translate_text(help_msg_ar, user_lang_code)
-             await update.message.reply_text(help_msg)
+    
+    # لا داعي لـ else هنا لأن دالة التشخيص العامة ستلتقط الرسائل غير المعالجة
 
 
 async def buy_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -227,16 +234,17 @@ if __name__ == '__main__':
         if translated_text:
             ALL_BUY_BUTTON_TEXTS.add(translated_text)
     
-    # ربط المعالجات
+    # ربط المعالجات الأساسية
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("buy", buy_app))
     application.add_handler(CommandHandler("deliver", deliver_app)) 
     application.add_handler(MessageHandler(filters.Text(list(ALL_BUY_BUTTON_TEXTS)), buy_app)) 
-    application.add_handler(MessageHandler(filters.Text(), handle_lang_choice))
-
-    # 🚨 ربط معالج التشخيص المؤقت (يرد على المستندات فقط) 🚨
+    application.add_handler(MessageHandler(filters.Text(list(SUPPORTED_LANGUAGES.keys())), handle_lang_choice))
+    # يجب أن يعالج handle_lang_choice الرسائل النصية الخاصة باللغات فقط
+    
+    # 🚨 ربط معالج التشخيص العام المؤقت (يلتقط أي رسالة غير معالجة) 🚨
     # هذا السطر يجب حذفه بعد الحصول على الـ ID الصحيح
-    application.add_handler(MessageHandler(filters.Document, debug_file_id_temp))
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, debug_file_id_temp_general))
     
     # بدء تشغيل البوت باستخدام Webhooks
     print(f"البوت يعمل بنظام Webhook على المنفذ {PORT}...")
