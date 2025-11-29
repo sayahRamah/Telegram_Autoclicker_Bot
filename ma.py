@@ -14,17 +14,16 @@ USER_ADMIN_ID = 5730502448
 WALLET_ADDRESS = "0xba844f21fafb51d3a05826756a6305c0ec07f2fa"
 APP_PRICE = 5.00 
 
-# رابط التنزيل الأصلي (لم يعد يستخدم لإرسال الملف)
 APK_DOWNLOAD_LINK = "https://play.google.com/store/apps/details?id=com.speed.gc.autoclicker.automatictap"
 
-# 🔑 مُعرِّف الملف الفريد (مفعل لنظام الإرسال المباشر للملف)
-APK_FILE_ID = "AgADex8AAt5fUVE" 
+# 🔑 مُعرِّف الملف (هذا هو المكان الذي ستضع فيه القيمة الصحيحة لاحقاً)
+APK_FILE_ID = "PLACEHOLDER_FILE_ID_TO_BE_REPLACED" 
 
 BINANCE_PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.binance.dev"
 
 BASE_BUTTON_TEXT_AR = "💰 شراء التطبيق"
 
-# اللغات المدعومة (الآن تشمل الكورية)
+# اللغات المدعومة
 SUPPORTED_LANGUAGES = {
     "العربية 🇪🇬": "ar",
     "English 🇺🇸": "en",
@@ -66,69 +65,62 @@ def translate_text(text_ar, lang_code):
         return text_ar
 
 # =============================================================================
-# 3. الدوال الرئيسية للبوت
+# 🚨 دالة التشخيص المؤقتة 🚨
+# =============================================================================
+
+async def debug_file_id_temp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """تستجيب لأي ملف مُرسل وترد بالـ File ID الخاص به."""
+    if update.message.document:
+        file_id = update.message.document.file_id
+        await update.message.reply_text(f"✅ تم الحصول على الرمز الصحيح. الرمز الكامل هو:\n\n`{file_id}`\n\n**انسخ الرمز بالكامل، بما في ذلك الحرف الأخير، بدون أي مسافات إضافية.**")
+        # هذا سيطبع الـ ID في سجلات Render أيضاً للتأكد
+        print(f"DEBUG: CORRECT FILE ID IS: {file_id}")
+    elif update.message.photo:
+        await update.message.reply_text("عذراً، يجب أن ترسل الملف كـ **مستند (Document)** وليس كصورة للحصول على المعرّف الصحيح.")
+
+# =============================================================================
+# 3. الدوال الرئيسية للبوت (لا تغيير)
 # =============================================================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """يبدأ العملية: يسأل عن اللغة أو يرحب باللغة المحفوظة."""
+    # ... (الكود يبقى كما هو)
     user_id = update.effective_user.id
     
     if user_id in user_states and user_states[user_id].get('lang'):
-        # إذا كانت اللغة موجودة، ابدأ المحادثة مباشرة
         user_lang_code = user_states[user_id]['lang']
-        
         welcome_text_ar = "مرحباً بك مجدداً! يمكنك الآن الضغط على زر الشراء أو استخدام الأمر /buy."
         welcome_text = translate_text(welcome_text_ar, user_lang_code)
-        
         button_text_ar = BASE_BUTTON_TEXT_AR 
         button_text = translate_text(button_text_ar, user_lang_code)
-        
         reply_keyboard = ReplyKeyboardMarkup([[KeyboardButton(button_text)]], resize_keyboard=True, one_time_keyboard=False)
-        
         await update.message.reply_text(welcome_text, reply_markup=reply_keyboard)
         return
     
-    # إذا لم يتم تحديد اللغة، اطرح السؤال
     lang_buttons_list = [KeyboardButton(lang) for lang in SUPPORTED_LANGUAGES.keys()]
-    
-    # تقسيم الأزرار إلى صفوف 
     lang_keyboard = ReplyKeyboardMarkup([lang_buttons_list[0:3], lang_buttons_list[3:6], lang_buttons_list[6:]], resize_keyboard=True, one_time_keyboard=True)
-    
     question = "👋 Welcome! يرجى اختيار اللغة المفضلة لديك للمتابعة:"
     await update.message.reply_text(question, reply_markup=lang_keyboard)
-    
     user_states[user_id] = {'status': 'awaiting_lang', 'lang': None}
 
 async def handle_lang_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """يعالج اختيار اللغة ويحفظها."""
+    # ... (الكود يبقى كما هو)
     user_id = update.effective_user.id
     user_text = update.message.text
     
-    # 1. التحقق من حالة انتظار اللغة
     if user_id in user_states and user_states[user_id]['status'] == 'awaiting_lang':
-        
         if user_text in SUPPORTED_LANGUAGES:
             lang_code = SUPPORTED_LANGUAGES[user_text]
-            
             user_states[user_id]['lang'] = lang_code
             user_states[user_id]['status'] = 'ready'
-            
             confirmation_ar = f"تم اختيار {user_text}! لنبدأ الآن."
             confirmation_text = translate_text(confirmation_ar, lang_code)
-            
             await update.message.reply_text(confirmation_text)
-            
-            # استدعاء دالة /start مرة أخرى الآن وقد تم تحديد اللغة
             await start(update, context) 
-            
         else:
             error_ar = "عذراً، يرجى اختيار واحدة من اللغات المتاحة من لوحة المفاتيح."
             error_text = translate_text(error_ar, get_user_lang(user_id))
             await update.message.reply_text(error_text)
-    
-    # إذا لم تكن الرسالة اختيار لغة، فسيتم تجاهلها أو معالجتها بواسطة معالج آخر
     else:
-        # إذا كانت الرسالة ليست أمراً ولا اختيار لغة، يمكن هنا توجيه المستخدم لـ /start
         user_lang_code = get_user_lang(user_id)
         if user_text not in SUPPORTED_LANGUAGES.keys():
              help_msg_ar = "عذراً، لا أفهم هذا الأمر. يرجى الضغط على زر الشراء أو استخدام الأمر /start."
@@ -137,26 +129,15 @@ async def handle_lang_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def buy_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ينشئ فاتورة الدفع ويرسل تنبيهاً للمشرف بلغة المستخدم."""
-    
+    # ... (الكود يبقى كما هو)
     user_id = update.effective_user.id
     user_lang_code = get_user_lang(user_id)
-    
-    # 1. إنشاء رقم مرجعي فريد
     order_id = f"ORD-{random.randint(10000, 99999)}"
     orders_db[order_id] = {'user_id': user_id, 'status': 'PENDING', 'username': update.effective_user.username}
-    
-    # 2. إنشاء زر مضمن (Inline Button) وترجمة نصه
     inline_button_text_ar = "🔗 افتح رابط المحفظة (للتسهيل)"
     inline_button_text = translate_text(inline_button_text_ar, user_lang_code)
-    
-    inline_button = InlineKeyboardButton(
-        text=inline_button_text, 
-        url=BINANCE_PLAY_STORE_LINK 
-    )
+    inline_button = InlineKeyboardButton(text=inline_button_text, url=BINANCE_PLAY_STORE_LINK)
     inline_keyboard = InlineKeyboardMarkup([[inline_button]])
-    
-    # 3. صياغة وترجمة تعليمات الدفع
     payment_message_ar = (
         f"💰 **فاتورة شراء التطبيق**\n\n"
         f"المبلغ المطلوب: **{APP_PRICE} USDT**\n"
@@ -165,90 +146,76 @@ async def buy_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"❗️ **بعد إرسال المبلغ، نرجو الانتظار قليلاً ريثما يتم التحقق من عملية الدفع و تسليم التطبيق.**"
     )
     translated_payment_message = translate_text(payment_message_ar, user_lang_code)
-    
     await (update.callback_query or update.message).reply_text(
-        translated_payment_message,
-        parse_mode='Markdown',
-        reply_markup=inline_keyboard
-    )
-    
-    # 4. إرسال تنبيه للمشرف (بلغة المشرف - العربية)
+        translated_payment_message, parse_mode='Markdown', reply_markup=inline_keyboard)
     admin_alert = (
         f"🚨 **تنبيه: طلب شراء جديد**\n"
         f"اللغة: {user_lang_code}\n"
         f"الرقم المرجعي: **{order_id}**\n"
         f"من المستخدم: @{update.effective_user.username or 'غير معروف'}\n"
         f"المطلوب: {APP_PRICE} USDT.\n"
-        f"للتسليم، أرسل الأمر التالي: `/deliver {order_id}`"
-    )
+        f"للتسليم، أرسل الأمر التالي: `/deliver {order_id}`")
     await context.bot.send_message(chat_id=USER_ADMIN_ID, text=admin_alert)
 
 
 async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """يستخدمه المشرف يدوياً لتأكيد التسليم للمستخدم وإرسال الملف."""
-    
+    # ... (الكود يبقى كما هو)
     if update.effective_user.id != USER_ADMIN_ID:
         return await update.message.reply_text("هذا الأمر خاص بالمشرفين فقط.")
-
     try:
         order_id = context.args[0]
     except (IndexError, TypeError):
         return await update.message.reply_text("يرجى إدخال الرقم المرجعي بعد الأمر. مثال: /deliver ORD-12345")
-
     if order_id not in orders_db:
         return await update.message.reply_text(f"الرقم المرجعي {order_id} غير موجود.")
-    
     if orders_db[order_id]['status'] == 'DELIVERED':
         return await update.message.reply_text(f"تم تسليم الطلب {order_id} مسبقاً.")
 
-    # تنفيذ التسليم
     target_user_id = orders_db[order_id]['user_id']
     user_lang_code = get_user_lang(target_user_id) 
     orders_db[order_id]['status'] = 'DELIVERED'
     
-    # صياغة وترجمة رسالة التعليق على الملف
     delivery_confirmation_ar = (
         f"✅ **تم تأكيد الدفع!** شكراً لك.\n\n"
-        f"هذا هو ملف التطبيق الخاص بك جاهز للتنزيل مباشرة لا تنسى مشاركة البوت مع اصدقائك 🙏🏻."
+        f"هذا هو ملف التطبيق الخاص بك جاهز للتنزيل مباشرة."
     )
     delivery_confirmation = translate_text(delivery_confirmation_ar, user_lang_code)
     
-    # إرسال التسليم كملف (Document) باستخدام مُعرِّف الملف
+    # سيحدث هذا الجزء خطأ طالما أن الـ ID هو PLACEHOLDER، لكنه سيعمل بعد التحديث
     await context.bot.send_document(
         chat_id=target_user_id, 
-        document=APK_FILE_ID,  # استخدام مُعرِّف الملف
+        document=APK_FILE_ID,  
         caption=delivery_confirmation, 
         parse_mode='Markdown'
     )
     
-    # تأكيد التسليم للمشرف
     await update.message.reply_text(f"تم بنجاح تسليم التطبيق للطلب {order_id}.")
 
 # =============================================================================
-# 4. نقطة الدخول وبدء التشغيل (باستخدام Webhook)
+# 4. نقطة الدخول وبدء التشغيل
 # =============================================================================
 
-# تحديد المتغيرات المطلوبة للويب هوك 
 PORT = int(os.environ.get('PORT', 8080)) 
 WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://your-app-name.onrender.com/') 
 
 if __name__ == '__main__':
-    # بناء التطبيق
     application = Application.builder().token(TOKEN_BOT).build()
     
-    # حساب جميع نصوص زر الشراء المترجمة
     ALL_BUY_BUTTON_TEXTS = set()
     for lang_code in SUPPORTED_LANGUAGES.values():
         translated_text = translate_text(BASE_BUTTON_TEXT_AR, lang_code)
         if translated_text:
             ALL_BUY_BUTTON_TEXTS.add(translated_text)
     
-    # ربط المعالجات
+    # ربط المعالجات الأساسية
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("buy", buy_app))
     application.add_handler(CommandHandler("deliver", deliver_app)) 
     application.add_handler(MessageHandler(filters.Text(list(ALL_BUY_BUTTON_TEXTS)), buy_app)) 
     application.add_handler(MessageHandler(filters.Text(), handle_lang_choice))
+
+    # 🚨 ربط معالج التشخيص المؤقت (يرد على المستندات فقط) 🚨
+    application.add_handler(MessageHandler(filters.Document, debug_file_id_temp))
     
     # بدء تشغيل البوت باستخدام Webhooks
     print(f"البوت يعمل بنظام Webhook على المنفذ {PORT}...")
@@ -258,4 +225,5 @@ if __name__ == '__main__':
         port=PORT,
         url_path="", 
         webhook_url=WEBHOOK_URL 
-    )
+        )
+        
