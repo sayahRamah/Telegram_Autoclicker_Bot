@@ -17,8 +17,8 @@ APP_PRICE = 5.00
 
 APK_DOWNLOAD_LINK = "https://play.google.com/store/apps/details?id=com.speed.gc.autoclicker.automatictap"
 
-# 🔑 مُعرِّف الملف (يرجى استبدال هذه القيمة بالرمز الصحيح الذي ستحصل عليه)
-APK_FILE_ID = "AgADah8AAt5fUVE" 
+# 🔑 مُعرِّف الملف (تم التحديث إلى الرمز الصحيح)
+APK_FILE_ID = "BQACAgQAAxkBAAIBUmkqRqqb9HSO4CMCA0OyAuhprNSaAAKQHwAC3l9RUZUnf_g9nsOkNgQ" 
 
 BINANCE_PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.binance.dev"
 
@@ -65,31 +65,6 @@ def translate_text(text_ar, lang_code):
         return text_ar
 
 # =============================================================================
-# 🚨 دالة التشخيص العامة المؤقتة (للحصول على الـ File ID) 🚨
-# =============================================================================
-
-async def debug_file_id_temp_general(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """تستجيب لأي رسالة وتحاول طباعة الـ File ID للمستند."""
-    
-    if update.message and update.message.document:
-        file_id = update.message.document.file_id
-        await update.message.reply_text(
-            f"✅ رمز الملف: `\n{file_id}`\n\n**انسخ الرمز بالكامل (من `A` إلى الحرف الأخير).**",
-            parse_mode='Markdown'
-        )
-    elif update.message and update.message.photo:
-        await update.message.reply_text("هذه صورة. يجب إرسال ملف التطبيق (APK) كـ **مستند (Document)** للحصول على الرمز الصحيح.")
-    elif update.message and update.message.text:
-         # نتجاهل الأوامر التي تبدأ بـ /start /buy /deliver لأن لها معالجات خاصة
-         if not update.message.text.startswith('/') and update.message.text not in SUPPORTED_LANGUAGES.keys():
-              # هذا الجزء يمكن أن يعالج رسائل المستخدم العادية بعد اختيار اللغة
-              user_lang_code = get_user_lang(update.effective_user.id)
-              help_msg_ar = "عذراً، لا أفهم هذا الأمر. يرجى الضغط على زر الشراء أو استخدام الأمر /start."
-              help_msg = translate_text(help_msg_ar, user_lang_code)
-              await update.message.reply_text(help_msg)
-
-
-# =============================================================================
 # 3. الدوال الرئيسية للبوت
 # =============================================================================
 
@@ -99,11 +74,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if user_id in user_states and user_states[user_id].get('lang'):
         user_lang_code = user_states[user_id]['lang']
+        
         welcome_text_ar = "مرحباً بك مجدداً! يمكنك الآن الضغط على زر الشراء أو استخدام الأمر /buy."
         welcome_text = translate_text(welcome_text_ar, user_lang_code)
+        
         button_text_ar = BASE_BUTTON_TEXT_AR 
         button_text = translate_text(button_text_ar, user_lang_code)
+        
         reply_keyboard = ReplyKeyboardMarkup([[KeyboardButton(button_text)]], resize_keyboard=True, one_time_keyboard=False)
+        
         await update.message.reply_text(welcome_text, reply_markup=reply_keyboard)
         return
     
@@ -122,19 +101,21 @@ async def handle_lang_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if user_text in SUPPORTED_LANGUAGES:
             lang_code = SUPPORTED_LANGUAGES[user_text]
+            
             user_states[user_id]['lang'] = lang_code
             user_states[user_id]['status'] = 'ready'
+            
             confirmation_ar = f"تم اختيار {user_text}! لنبدأ الآن."
             confirmation_text = translate_text(confirmation_ar, lang_code)
+            
             await update.message.reply_text(confirmation_text)
             await start(update, context) 
+            
         else:
             error_ar = "عذراً، يرجى اختيار واحدة من اللغات المتاحة من لوحة المفاتيح."
             error_text = translate_text(error_ar, get_user_lang(user_id))
             await update.message.reply_text(error_text)
     
-    # لا داعي لـ else هنا لأن دالة التشخيص العامة ستلتقط الرسائل غير المعالجة
-
 
 async def buy_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ينشئ فاتورة الدفع ويرسل تنبيهاً للمشرف بلغة المستخدم."""
@@ -168,7 +149,7 @@ async def buy_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """يستخدمه المشرف يدوياً لتأكيد التسليم للمستخدم وإرسال الملف، مع معالجة الأخطاء."""
+    """يستخدمه المشرف يدوياً لتأكيد التسليم للمستخدم وإرسال الملف."""
     
     if update.effective_user.id != USER_ADMIN_ID:
         return await update.message.reply_text("هذا الأمر خاص بالمشرفين فقط.")
@@ -190,15 +171,15 @@ async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     delivery_confirmation = translate_text(delivery_confirmation_ar, user_lang_code)
     
-    # 🚨 كتلة try/except لمعالجة خطأ مُعرِّف الملف 🚨
+    # 🚨 كتلة try/except لمعالجة خطأ مُعرِّف الملف (لإظهار الخطأ للمشرف إذا حدث) 🚨
     try:
         if orders_db[order_id]['status'] == 'DELIVERED':
              return await update.message.reply_text(f"تم تسليم الطلب {order_id} مسبقاً.")
 
-        # محاولة إرسال التسليم كملف (Document)
+        # محاولة إرسال التسليم كملف (Document) - ستنجح الآن بالرمز الجديد
         await context.bot.send_document(
             chat_id=target_user_id, 
-            document=APK_FILE_ID,  # استخدام مُعرِّف الملف
+            document=APK_FILE_ID, 
             caption=delivery_confirmation, 
             parse_mode='Markdown'
         )
@@ -208,13 +189,11 @@ async def deliver_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"تم بنجاح تسليم التطبيق للطلب {order_id}.")
 
     except telegram.error.BadRequest as e:
-        # إذا فشل الإرسال بسبب File ID خاطئ 
         error_msg = f"❌ **فشل التسليم للطلب {order_id}:**\n\nالسبب: `telegram.error.BadRequest`\n\nالتفاصيل: {e}"
         await update.message.reply_text(error_msg)
-        await update.message.reply_text("الحل: يجب نسخ مُعرِّف الملف (APK_FILE_ID) مرة أخرى بدقة شديدة.")
+        await update.message.reply_text("الرمز الذي تم استخدامه: " + APK_FILE_ID)
     
     except Exception as e:
-        # لأي خطأ آخر غير متوقع
         await update.message.reply_text(f"❌ خطأ غير متوقع أثناء التسليم: {e}")
 
 
@@ -234,17 +213,12 @@ if __name__ == '__main__':
         if translated_text:
             ALL_BUY_BUTTON_TEXTS.add(translated_text)
     
-    # ربط المعالجات الأساسية
+    # ربط المعالجات (النهائية)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("buy", buy_app))
     application.add_handler(CommandHandler("deliver", deliver_app)) 
     application.add_handler(MessageHandler(filters.Text(list(ALL_BUY_BUTTON_TEXTS)), buy_app)) 
     application.add_handler(MessageHandler(filters.Text(list(SUPPORTED_LANGUAGES.keys())), handle_lang_choice))
-    # يجب أن يعالج handle_lang_choice الرسائل النصية الخاصة باللغات فقط
-    
-    # 🚨 ربط معالج التشخيص العام المؤقت (يلتقط أي رسالة غير معالجة) 🚨
-    # هذا السطر يجب حذفه بعد الحصول على الـ ID الصحيح
-    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, debug_file_id_temp_general))
     
     # بدء تشغيل البوت باستخدام Webhooks
     print(f"البوت يعمل بنظام Webhook على المنفذ {PORT}...")
